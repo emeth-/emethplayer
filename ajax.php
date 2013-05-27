@@ -25,6 +25,14 @@ switch ($_GET['act'])
         die(user_register($_POST['register_email'], $_POST['register_pass1'], $_POST['register_pass2']));
         break;
     
+    case "get_playlist":
+        die(get_playlist($user));
+        break;
+    
+    case "save_playlist":
+        die(save_playlist($user, $_POST['playlist']));
+        break;
+    
     case "update_current":
         die(update_current($user, $_POST['audio_id'], $_POST['audio_time']));
         break;

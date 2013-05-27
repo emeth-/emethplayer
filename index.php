@@ -20,6 +20,7 @@ var curr_playing = {};
 var update_current_lock = 0;
 var last_update_time = -10;
 var jplist;
+var available_tracks = {};
 </script>
         
 <script type="text/javascript" id="ajax_calls">
@@ -49,8 +50,35 @@ function get_logged_in_user()
             console.log("error", e);
         }
     });
+    load_playlist();
 }
 
+function load_playlist()
+{
+    jQuery.ajax({
+        type: "POST",
+        url: "ajax.php?act=get_playlist",
+        dataType:'json',
+        data: { },
+        success: function(data) {
+            console.log(data);
+            if (data.status == "success")
+            {
+                jQuery.each(data.playlist, function(k,v){
+                    add_to_playlist(data.playlist_data[v].title, data.playlist_data[v].file_loc, v, data.playlist_data[v].author_name, data.playlist_data[v].sermon_timestamp);
+                });
+
+            }
+            else
+            {
+                alert("Error: "+data.error);
+            }
+        },
+        error: function (e) {
+            console.log("error", e);
+        }
+    });
+}
 
 function logout()
 {
@@ -69,6 +97,7 @@ function logout()
         }
     });
 }
+
 function login()
 {
     var dataz = {
@@ -101,6 +130,7 @@ function login()
         }
     });
 }
+
 function register()
 {
     var dataz = {
@@ -141,7 +171,7 @@ function register()
         });
     }
 }
-var available_tracks = {};
+
 function get_available_tracks()
 {
     jQuery.ajax({
@@ -214,6 +244,29 @@ function new_current()
     });
 }
 
+function save_playlist()
+{
+    var playlist = [];
+    jQuery('.playlist_td').each(function(){
+        playlist.push(jQuery(this).attr('data-id'));
+    });
+
+    jQuery.ajax({
+        url: 'ajax.php?act=save_playlist',
+        type:"POST",
+        dataType:'json',
+        data: {
+            'playlist': playlist.join('|')
+        },
+        error:function (e) {
+            console.log('error', e);
+        },
+        success:function (data) {
+            console.log("save_playlist", data);
+        }
+    });
+}
+
 function update_current()
 {
     if (update_current_lock == 0 && Math.abs(last_update_time - curr_playing['current_playing_time']) >= 10)
@@ -252,12 +305,17 @@ function add_to_playlist(title, mp3, id, author_name, sermon_timestamp)
             'sermon_timestamp': sermon_timestamp
         };
         jQuery('#playlist').append(ich.playlist_track(dataz));
+        save_playlist();
     }
 }
 
-jQuery(document).ready(function () {
+function remove_from_playlist(pid)
+{
+    jQuery(".playlist_"+pid).remove();
+    save_playlist();
+}
 
-});
+
 function play_track(info)
 {
     update_current_lock = 1;
@@ -288,11 +346,6 @@ function set_current_track_local(info)
     jQuery('#curr_description').html(info.description);
     jQuery('#curr_total_plays').html(info.plays);
     jQuery('#curr_date').html('...');
-}
-
-function remove_from_playlist(pid)
-{
-    jQuery(".playlist_"+pid).remove();
 }
 
 function next_track()
@@ -378,8 +431,28 @@ function next_track()
 
     <div id="jplayer_inspector"></div>
 
-<script type="text/javascript">
-</script>
+<br /><br />
+
+<span class='logged_out' style='display:block;'>
+    <hr />
+    <h2>Login</h2>
+    Email: <input type='text' id='login_email' onkeypress="if(event.keyCode==13) {login();}"><br />
+    Password: <input type='password' id='login_pass' onkeypress="if(event.keyCode==13) {login();}"><br />
+    <button onclick="login()">Submit</button><br /><br />
+    
+    <hr />
+    <h2>Register</h2>
+    Email: <input type='text' id='register_email' onkeypress="if(event.keyCode==13) {register();}"><br />
+    Password: <input type='password' id='register_pass1' onkeypress="if(event.keyCode==13) {register();}"><br />
+    Password Again: <input type='password' id='register_pass2' onkeypress="if(event.keyCode==13) {register();}"><br />
+    <button onclick="register()">Submit</button><br /><br />
+</span>
+
+<span class='logged_in' style='display:none;'>
+    <hr />
+    <button onclick="logout()">Logout</button><br /><br />
+</span>
+
     
 <script type="text/html" id="available_track_template">
 <table data-url="{{ file_loc }}">
@@ -397,28 +470,9 @@ function next_track()
 </script>
 <script type="text/html" id="playlist_track">
     <tr class="playlist_{{ id }}">
-        <td data-url="{{ file_loc }}" data-id="{{ id }}"><h4>[<a href="javascript:void" onclick="remove_from_playlist('{{ id }}')">X</a>] {{ author_name }}: {{ title }}</h4></td> <td colspan=2>Date: {{ sermon_timestamp }}</td><td></td>
+        <td class="playlist_td" data-url="{{ file_loc }}" data-id="{{ id }}"><h4>[<a href="javascript:void" onclick="remove_from_playlist('{{ id }}')">X</a>] {{ author_name }}: {{ title }}</h4></td> <td colspan=2>Date: {{ sermon_timestamp }}</td><td></td>
     </tr>
 </script>
-<br /><br />
-
-<hr />
-<h2>Login</h2>
-Email: <input type='text' id='login_email' onkeypress="if(event.keyCode==13) {login();}"><br />
-Password: <input type='password' id='login_pass' onkeypress="if(event.keyCode==13) {login();}"><br />
-<button onclick="login()">Submit</button><br /><br />
-
-<hr />
-<h2>Register</h2>
-Email: <input type='text' id='register_email' onkeypress="if(event.keyCode==13) {register();}"><br />
-Password: <input type='password' id='register_pass1' onkeypress="if(event.keyCode==13) {register();}"><br />
-Password Again: <input type='password' id='register_pass2' onkeypress="if(event.keyCode==13) {register();}"><br />
-<button onclick="register()">Submit</button><br /><br />
-
-<hr />
-<button onclick="logout()">Logout</button><br /><br />
-
-
 
 </body>
 </html>

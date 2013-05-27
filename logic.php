@@ -2,59 +2,36 @@
 
 //ADD EVENT LOGS
 // add forgot password
-// add register
 
-function submit($username, $email, $pass, $pass2)
+function get_playlist($user)
+{
+    $returnData = array();
+    $returnData['status'] = "success";
+    $user_q = mysql_query("SELECT playlist FROM user WHERE id=".$user['id']);
+    $u = mysql_fetch_assoc($user_q);
+    $returnData['playlist'] = explode('|', $u['playlist']);
+    $returnData['playlist_data'] = array();
+    $pld = mysql_query("SELECT * FROM audio WHERE id IN (".implode(',', $returnData['playlist']).")");
+    while($p = mysql_fetch_assoc($pld))
+        $returnData['playlist_data'][$p['id']] = $p;
+    
+    return json_encode($returnData);
+}
+
+function save_playlist($user, $playlist)
 {
     $returnData = array();
     
-    $username = preg_replace("/[^a-zA-Z0-9]/", "", $username);
-    $returnData['username'] = $username;
-    
-    if ($pass == '')
-    {
-        $returnData['error'] = "Password cannot be blank";
-        return $returnData;
-    }
+    $pieces = explode('|', $playlist);
+    for ($i=0; $i<count($pieces); $i++)
+        $pieces[$i] = abs(intval($pieces[$i]));
+    $playlist = implode('|', $pieces);
 
-    if($pass != $pass2)
-    {
-        $returnData['error'] = "Passwords don't match.";
-        return $returnData;
-    }
+    mysql_query("UPDATE user SET playlist='".$playlist."' WHERE id=".$user['id']);
 
-    if(!filter_var($email, FILTER_VALIDATE_EMAIL))
-    {
-        $returnData['error'] = "Invalid email.";
-        return $returnData;
-    }
-    else
-    {
-        $email = mysql_real_escape_string($email);
-        $returnData['email'] = $email;
-    }
-    
-    $existsQ = mysql_query("SELECT COUNT(*) as cnt FROM user WHERE username='$username'");
-    $exists = mysql_fetch_assoc($existsQ);
-    if($exists['cnt'] > 0)
-    {
-        $returnData['error'] = "Username unavailable.";
-        return $returnData;
-    }
-
-    $existsQ2 = mysql_query("SELECT COUNT(*) as cnt FROM user WHERE email='$email'");
-    $exists2 = mysql_fetch_assoc($existsQ2);
-    if($exists2['cnt'] > 0)
-    {
-        $returnData['error'] = "Email unavailable.";
-        return $returnData;
-    }
-
-    $encPassword = sha1($email.$pass);
-    $existsQ = mysql_query("INSERT INTO user (username, password, email) VALUES('$username', '$encPassword', '$email')");
     $returnData['status'] = "success";
 
-    return $returnData;
+    return json_encode($returnData);
 }
 
 function new_current($user, $audio_id)
