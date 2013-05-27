@@ -10,11 +10,19 @@ switch ($_GET['act'])
         break;
     
     case "login":
-        die(user_login($_POST['email'], $_POST['password']));
+        die(user_login($_POST['login_email'], $_POST['login_pass']));
+        break;
+    
+    case "login":
+        die(user_logout());
+        break;
+    
+    case "get_logged_in_user":
+        die(get_logged_in_user());
         break;
     
     case "register":
-        die(user_login($_POST['register_username'], $_POST['register_email'], $_POST['register_pass1'], $_POST['register_pass2']));
+        die(user_register($_POST['register_email'], $_POST['register_pass1'], $_POST['register_pass2']));
         break;
     
     case "update_current":

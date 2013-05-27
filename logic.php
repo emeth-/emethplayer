@@ -143,194 +143,102 @@ function user_login($email, $password)
     {
         $returnData['status'] = "error";
         $returnData['error'] = "Invalid email.";
+        return json_encode($returnData);
     }
     else
     {
         $email = mysql_real_escape_string($email);
         $encPassword = sha1($email.$password);
-        $exists = mysql_query("SELECT id FROM user WHERE (email='$email' AND password='$encPassword') OR id = 1"); //DEBUG - REMOVE OR FOR PRODUCTION
-        if(mysql_num_rows($exists) > 0)
-        {
-            $returnData['status'] = "success";
-            $user = mysql_fetch_array($exists);
-            $_SESSION['userid'] = $user['id'];
-            $returnData['username'] = $user['username'];
-            $returnData['curr_playing'] = -1;
-            $shrz = mysql_query("SELECT * FROM plays WHERE user_id=".$user['id']." ORDER BY start_timestamp DESC LIMIT 1");
-            if (mysql_num_rows($shrz) > 0)
-            {
-                $returnData['curr_playing'] = array();
-                $shr = mysql_fetch_assoc($shrz);
-                $returnData['curr_playing']['audio_id'] = $shr['audio_id'];
-                $returnData['curr_playing']['audio_time'] = $shr['audio_timestamp'];
-                $returnData['curr_playing']['audio_data'] = mysql_fetch_assoc(mysql_query("SELECT * FROM audio WHERE id=".$shr['audio_id']));
-            }
-        }
-        else
-        {
-            $returnData['status'] = "error";
-            $returnData['error'] = "User not found.";
-        }
+        return json_encode(helper_login_user($email, $encPassword));
     }
-    return json_encode($returnData);
 }
-function buy_stock($user, $ticker, $shares)
+
+
+
+
+function user_register($email, $pass, $pass2)
 {
     $returnData = array();
-    $ticker = mysql_real_escape_string($ticker);
-    $shares = abs(intval($shares));
-    $stock_price = get_stock_price($ticker);
-    $total_cost = $stock_price * $shares;
-    if ($total_cost > $user['money'])
-    {
-        $shares = intval($user['money'] / $stock_price);
-        $total_cost = $stock_price * $shares;
-    }
     
-    mysql_query("UPDATE users SET money=money-".$total_cost." WHERE id=".$user['id']);
-    $shrz = mysql_query("SELECT * FROM stock WHERE user=".$user['id']." AND ticker={$ticker} AND shares={$shares}");
-    if (mysql_num_rows($shrz)>0)
-        mysql_query("UPDATE stock SET shares=shares+{$shares} WHERE user=".$user['id']." AND ticker={$ticker}");
+    if ($pass == '')
+    {
+        $returnData['status'] = "error";
+        $returnData['error'] = "Password cannot be blank";
+        return json_encode($returnData);;
+    }
+    if($pass != $pass2)
+    {
+        $returnData['status'] = "error";
+        $returnData['error'] = "Passwords don't match.";
+        return json_encode($returnData);;
+    }
+    if(!filter_var($email, FILTER_VALIDATE_EMAIL))
+    {
+        $returnData['status'] = "error";
+        $returnData['error'] = "Invalid email.";
+        return json_encode($returnData);;
+    }
+
+    $email = mysql_real_escape_string($email);
+
+    $existsQ2 = mysql_query("SELECT COUNT(*) as cnt FROM user WHERE email='$email'");
+    $exists2 = mysql_fetch_assoc($existsQ2);
+    if($exists2['cnt'] > 0)
+    {
+        $returnData['error'] = "Email unavailable.";
+        return json_encode($returnData);;
+    }
+
+    $encPassword = sha1($email.$pass);
+    $existsQ = mysql_query("INSERT INTO user (password, email) VALUES('$encPassword', '$email')");
+    
+    return json_encode(helper_login_user($email, $encPassword));
+}
+
+function get_logged_in_user()
+{
+    return json_encode(helper_login_user('', '', $_SESSION['userid']));
+}
+
+function user_logout()
+{
+    $returnData = array();
+    session_destroy();
+    $returnData['status'] = 'success';
+    return json_encode($returnData);
+}
+
+function helper_login_user($email, $encPassword, $user_id=-1)
+{
+    $returnData = array();
+    if ($user_id == -1)
+        $exists = mysql_query("SELECT * FROM user WHERE (email='$email' AND password='$encPassword')");
     else
-        mysql_query("INSERT INTO stock (user, ticker, shares) VALUES(".$user['id'].", '{$ticker}', {$shares})");
-        
-    $returnData['money'] = $user['money'] - $total_cost;
-    $returnData['bought_stock'] = $ticker;
-    $returnData['bought_shares'] = $shares;
-    $returnData['bought_price'] = $total_cost;
-    $returnData['status'] = "success";
-        
-    return json_encode($returnData);
-}
-function sell_stock($user, $ticker, $shares)
-{
-    $returnData = array();
-    $ticker = mysql_real_escape_string($ticker);
-    $shares = abs(intval($shares));
-    $stock_price = get_stock_price($ticker);
-    $total_profit = $stock_price * $shares;
+        $exists = mysql_query("SELECT * FROM user WHERE id=$user_id");
     
-    $shrz = mysql_query("SELECT * FROM stock WHERE user=".$user['id']." AND ticker={$ticker} AND shares={$shares}");
-    if (mysql_num_rows($shrz)>0)
+    if(mysql_num_rows($exists) > 0)
     {
-        $shr = mysql_fetch_array($shrz);
-        if ($shr['shares'] <= $shares)
+        $returnData['status'] = "success";
+        $user = mysql_fetch_array($exists);
+        $_SESSION['userid'] = $user['id'];
+        $returnData['email'] = $user['email'];
+        $returnData['curr_playing'] = -1;
+        $shrz = mysql_query("SELECT * FROM plays WHERE user_id=".$user['id']." ORDER BY start_timestamp DESC LIMIT 1");
+        if (mysql_num_rows($shrz) > 0)
         {
-            mysql_query("UPDATE stock SET shares=shares+{$shares} WHERE user=".$user['id']." AND ticker={$ticker}");
-            mysql_query("UPDATE users SET money=money+".$total_profit." WHERE id=".$user['id']);
-            mysql_query("UPDATE stock SET shares=shares-{$shares} WHERE user=".$user['id']." AND ticker={$ticker}");
-            mysql_query("DELETE FROM stock WHERE shares=0");
-                
-            $returnData['money'] = $user['money'] - $total_cost;
-            $returnData['bought_stock'] = $ticker;
-            $returnData['bought_shares'] = $shares;
-            $returnData['bought_price'] = $total_cost;
-            $returnData['status'] = "success";
+            $returnData['curr_playing'] = array();
+            $shr = mysql_fetch_assoc($shrz);
+            $returnData['curr_playing']['audio_id'] = $shr['audio_id'];
+            $returnData['curr_playing']['audio_time'] = $shr['audio_timestamp'];
+            $returnData['curr_playing']['audio_data'] = mysql_fetch_assoc(mysql_query("SELECT * FROM audio WHERE id=".$shr['audio_id']));
         }
-        else
-        {
-            $returnData['status'] = "error";
-            $returnData['error'] = "You do not have that many shares.";
-        }
-    }
-    else
-    {
-            $returnData['status'] = "error";
-            $returnData['error'] = "You do not own that stock.";
-    }
-    
-    return json_encode($returnData);
-}
-
-function view_my_stock($user)
-{
-    $returnData = array();
-    $shrz = mysql_query("SELECT * FROM stock WHERE user=".$user['id']);
-    while ($shr = mysql_fetch_array($shrz))
-    {
-        $sing = array();
-        $sing['ticker'] = $shr['ticker'];
-        $sing['shares'] = $shr['shares'];
-        $sing['pps'] = get_stock_price($shr['ticker']);
-        $returnData[] = $sing;
-    }
-    return json_encode($returnData);
-}
-
-function view_high_scores($user)
-{
-    $returnData = array();
-    $shrz = mysql_query("SELECT * FROM user ORDER BY net_worth DESC");
-    while ($shr = mysql_fetch_array($shrz))
-    {
-        $sing = array();
-        $sing['name'] = $shr['username'];
-        $sing['score'] = $shr['net_worth'];
-        $returnData[] = $sing;
-    }
-    return json_encode($returnData);
-}
-
-function get_stock_price($stock)
-{
-    $s1 = ((float) get_stock_price_from_source($stock, 'google')) * 100;
-    $s2 = ((float) get_stock_price_from_source($stock, 'yahoo')) * 100;
-    if ($s1 == $s2)
-    {
-        //they are the same, woohoo!
-        return $s1;
     }
     else
     {
-        //they are not the same. Extend this in the future. For now, go with yahoo.
-        return $s2;
+        $returnData['status'] = "error";
+        $returnData['error'] = "User not found.";
     }
-}
-
-function get_stock_price_from_source($stock, $source)
-{
-    if ($source == 'google')
-    {
-        /*
-            http://finance.google.com/finance/info?client=ig&q=NASDAQ%3aGOOG
-            http://finance.google.com/finance/info?client=ig&q=GOOG
-        */
-        $url = 'http://finance.google.com/finance/info?client=ig&q='.$stock;
-        $content = file_get_contents($url);
-        $res = json_decode(str_replace('// ', '', $content), true);
-        return $res[0]['l_cur'];
-    }
-    elseif ($source == 'yahoo')
-    {
-        /*
-            http://download.finance.yahoo.com/d/quotes.csv?s=%40%5EDJI,GOOG&f=nsl1op&e=.csv
-            http://download.finance.yahoo.com/d/quotes.csv?s=GOOG&f=nsl1op&e=.csv
-        */
-        $url = 'http://download.finance.yahoo.com/d/quotes.csv?s='.$stock.'&f=nsl1op&e=.csv';
-        $content = file_get_contents($url);
-        $data = explode(',', $content);
-        return $data[2];
-    }
-    elseif ($source == 'yql_yahoo')
-    {
-        /* http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.quote%20where%20symbol%20in%20(%22YHOO%22%2C%22AAPL%22%2C%22GOOG%22%2C%22MSFT%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback= http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.quote%20where%20symbol%20in%20(%22GOOG%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback=
-        */
-        $url = 'http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20yahoo.finance.quote%20where%20symbol%20in%20(%22'.$stock.'%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback=';
-        $content = file_get_contents($url);
-        $res = json_decode($content, true);
-        return $res['query']['results']['quote']['LastTradePriceOnly'];
-    }
-    elseif ($source == 'yql_google')
-    {
-        /* http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20google.igoogle.stock%20where%20stock%20in%20('GOOG')%3B&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback=
-        */
-        $url = "http://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20google.igoogle.stock%20where%20stock%20in%20('".$stock."')%3B&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback=";
-        $content = file_get_contents($url);
-        $res = json_decode($content, true);
-        return $res['query']['results']['xml_api_reply']['finance']['last']['data'];
-    }
-    
-    // http://finance.yahoo.com/d/quotes.csv?s=STOCK_SYMBOLS separated by Ò+Ó &f= special_tags
+    return $returnData;
 }
 
 ?>

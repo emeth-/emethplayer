@@ -1,3 +1,4 @@
+<? session_start(); ?>
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -22,25 +23,123 @@ var jplist;
 </script>
         
 <script type="text/javascript" id="ajax_calls">
-function login(email, password)
+function get_logged_in_user()
 {
     jQuery.ajax({
         type: "POST",
-        url: "ajax.php?act=login",
+        url: "ajax.php?act=get_logged_in_user",
         dataType:'json',
-        data: {
-            'email':email,
-            'password':password
-        },
+        data: { },
         success: function(data) {
-            console.log("logged in", data);
-            if (data.curr_playing != -1)
-                resume_track(data.curr_playing.audio_data, data.curr_playing.audio_time);
+            console.log(data);
+            if (data.status == "success")
+            {
+                jQuery('.username_display').html(data.email);
+                jQuery('.logged_in').css('display', 'block');
+                jQuery('.logged_out').css('display', 'none');
+                if (data.curr_playing != -1)
+                    resume_track(data.curr_playing.audio_data, data.curr_playing.audio_time);
+            }
+            else
+            {
+                alert("Error: "+data.error);
+            }
         },
         error: function (e) {
             console.log("error", e);
         }
     });
+}
+
+
+function logout()
+{
+    jQuery.ajax({
+        type: "POST",
+        url: "ajax.php?act=logout",
+        dataType:'json',
+        data: {},
+        success: function(data) {
+            console.log(data);
+            jQuery('.logged_in').css('display', 'none');
+            jQuery('.logged_out').css('display', 'block');
+        },
+        error: function (e) {
+            console.log("error", e);
+        }
+    });
+}
+function login()
+{
+    var dataz = {
+        'login_email': jQuery('#login_email').val(), 
+        'login_pass': jQuery('#login_pass').val(), 
+    };
+    jQuery.ajax({
+        type: "POST",
+        url: "ajax.php?act=login",
+        dataType:'json',
+        data: dataz,
+        success: function(data) {
+            console.log(data);
+            if (data.status == "success")
+            {
+                jQuery('.username_display').html(data.email);
+                jQuery('.logged_in').css('display', 'block');
+                jQuery('.logged_out').css('display', 'none');
+                jQuery('.username_display').html(data.email);
+                if (data.curr_playing != -1)
+                    resume_track(data.curr_playing.audio_data, data.curr_playing.audio_time);
+            }
+            else
+            {
+                alert("Error: "+data.error);
+            }
+        },
+        error: function (e) {
+            console.log("error", e);
+        }
+    });
+}
+function register()
+{
+    var dataz = {
+        'register_email': jQuery('#register_email').val(), 
+        'register_pass1': jQuery('#register_pass1').val(), 
+        'register_pass2': jQuery('#register_pass2').val(), 
+    };
+    if (dataz['register_pass1'] != dataz['register_pass2'])
+    {
+        alert("Error: Your passwords did not match.");
+    }
+    else
+    {
+        jQuery.ajax({
+            type: "POST",
+            url: "ajax.php?act=register",
+            dataType:'json',
+            data: dataz,
+            success: function(data) {
+                console.log(data);
+                if (data.status == "success")
+                {
+                    jQuery('.username_display').html(data.email);
+                    jQuery('.logged_in').css('display', 'block');
+                    jQuery('.logged_out').css('display', 'none');
+                    alert("Thanks for registering, "+data.email+"!");
+                    if (data.curr_playing != -1)
+                        resume_track(data.curr_playing.audio_data, data.curr_playing.audio_time);
+                }
+                else
+                {
+                    alert("Error: "+data.error);
+                }
+            },
+            error: function (e) {
+                console.log("error", e);
+            }
+        });
+    }
 }
 var available_tracks = {};
 function get_available_tracks()
@@ -69,6 +168,7 @@ function get_available_tracks()
     
     
 $(document).ready(function() {
+    get_logged_in_user();
     // http://www.jplayer.org/latest/developer-guide/
     // http://www.jplayer.org/latest/quick-start-guide/
     
@@ -156,7 +256,7 @@ function add_to_playlist(title, mp3, id, author_name, sermon_timestamp)
 }
 
 jQuery(document).ready(function () {
-    login('seanybob@gmail.com', 'password');
+
 });
 function play_track(info)
 {
@@ -224,7 +324,10 @@ function next_track()
     </head>
     <body>
         <button onclick="sb()">sb</button>
+<? print_r($_SESSION); ?>
 
+<span class='logged_in' style='display:none;'>You are logged in as <span class='username_display'></span>.</span>
+<span class='logged_out' style='display:block;'>You are not logged in.</span>
 <div id='content'>
     <div id='available_tracks'></div>
 </div>
@@ -297,11 +400,25 @@ function next_track()
         <td data-url="{{ file_loc }}" data-id="{{ id }}"><h4>[<a href="javascript:void" onclick="remove_from_playlist('{{ id }}')">X</a>] {{ author_name }}: {{ title }}</h4></td> <td colspan=2>Date: {{ sermon_timestamp }}</td><td></td>
     </tr>
 </script>
-<br /><br /><br />
+<br /><br />
+
+<hr />
+<h2>Login</h2>
+Email: <input type='text' id='login_email' onkeypress="if(event.keyCode==13) {login();}"><br />
+Password: <input type='password' id='login_pass' onkeypress="if(event.keyCode==13) {login();}"><br />
+<button onclick="login()">Submit</button><br /><br />
+
+<hr />
 <h2>Register</h2>
-Username: <input type='text' id='register_username'><br />
-E-Mail: <input type='text' id='register_email'><br />
-Password: <input type='text' id='register_pass1'><br />
-Password Again: <input type='text' id='register_pass2'><br />
+Email: <input type='text' id='register_email' onkeypress="if(event.keyCode==13) {register();}"><br />
+Password: <input type='password' id='register_pass1' onkeypress="if(event.keyCode==13) {register();}"><br />
+Password Again: <input type='password' id='register_pass2' onkeypress="if(event.keyCode==13) {register();}"><br />
+<button onclick="register()">Submit</button><br /><br />
+
+<hr />
+<button onclick="logout()">Logout</button><br /><br />
+
+
+
 </body>
 </html>

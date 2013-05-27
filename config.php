@@ -21,6 +21,7 @@ if (!$con)
 mysql_select_db($mysqlConfig['mysql_db'], $con);
 
 $user = -1;
+
 if($_SESSION && $_SESSION['userid'])
 {
     $exists = mysql_query("SELECT * FROM user WHERE id={$_SESSION['userid']}");
