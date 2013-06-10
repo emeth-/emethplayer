@@ -13,7 +13,7 @@ switch ($_GET['act'])
         die(user_login($_POST['login_email'], $_POST['login_pass']));
         break;
     
-    case "login":
+    case "logout":
         die(user_logout());
         break;
     

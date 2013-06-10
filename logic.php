@@ -6,8 +6,14 @@
 function get_playlist($user)
 {
     $returnData = array();
-    $returnData['status'] = "success";
     $user_q = mysql_query("SELECT playlist FROM user WHERE id=".$user['id']);
+    if (mysql_num_rows($user_q) <= 0)
+    {
+        $returnData['status'] = "error";
+        $returnData['error'] = "No playlist found.";
+        return json_encode($returnData);
+    }
+    $returnData['status'] = "success";
     $u = mysql_fetch_assoc($user_q);
     $returnData['playlist'] = explode('|', $u['playlist']);
     $returnData['playlist_data'] = array();
@@ -130,9 +136,6 @@ function user_login($email, $password)
     }
 }
 
-
-
-
 function user_register($email, $pass, $pass2)
 {
     $returnData = array();
@@ -174,7 +177,15 @@ function user_register($email, $pass, $pass2)
 
 function get_logged_in_user()
 {
-    return json_encode(helper_login_user('', '', $_SESSION['userid']));
+    global $user;
+    if ($user != -1)
+    {
+        return json_encode(helper_login_user('', '', $_SESSION['userid']));
+    }
+    else
+    {
+        return json_encode(array("status"=>"error", "error"=>"Not logged in."));
+    }
 }
 
 function user_logout()
