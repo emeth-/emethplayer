@@ -33,19 +33,23 @@ switch ($_GET['act'])
         die(save_playlist($user, $_POST['playlist']));
         break;
     
-    case "update_current":
-        die(update_current($user, $_POST['audio_id'], $_POST['audio_time']));
-        break;
-    
     case "new_current":
         die(new_current($user, $_POST['audio_id']));
         break;
     
-    case "add_sermon":
+    case "update_current":
+        die(update_current($user, $_POST['audio_id'], $_POST['audio_time']));
+        break;
+    
+    case "end_current":
+        die(end_current($user, $_POST['audio_id'], $_POST['duration']));
+        break;
+    
+    case "add_track":
         if ($_POST['password'] != "royale")
             die("bad password");
         else
-            die(add_sermon($_POST['file_loc'], $_POST['file_loc_s3'], $_POST['title'], $_POST['author_name'], $_POST['church'], $_POST['church_website'], $_POST['description'], $_POST['scripture'], $_POST['sermon_timestamp'], $_POST['download_me']));
+            die(add_track($_POST['file_loc'], $_POST['file_loc_s3'], $_POST['title'], $_POST['author_name'], $_POST['owner_name'], $_POST['owner_website'], $_POST['description'], $_POST['tags'], $_POST['track_timestamp'], $_POST['download_me']));
         break;
 }
 

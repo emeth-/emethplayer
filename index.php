@@ -66,6 +66,9 @@ $(document).ready(function() {
             curr_playing['total_playing_time'] = parseInt(event.jPlayer.status.duration); //curr_playing['total_playing_time'] = parseInt(jQuery(this).data().jPlayer.status.duration);
             update_current();
         },
+        ended: function(event) {
+            end_current(event.jPlayer.status.duration);
+        },
         swfPath: "js",
         supplied: "mp3"
     });
@@ -87,23 +90,18 @@ $(document).ready(function() {
     </head>
     <body class="wide">
         
-        
-        
-        
-        
-        
-        
 	<div class="left floats">
-		<div class="header">
-			links
+		<div class="header">emethPlayer
 			<span class="rightbutton">
-                            <span class='logged_in' style='display:none;'>You are logged in as <span class='username_display'></span>.</span>
-                            <span class='logged_out' style='display:block;'>You are not logged in.</span>
+                            <span class='logged_in' style='display:none;'>You are logged in as <span class='username_display'></span>. <button onclick="logout()">Logout</button><br /><br />
+</span>
+                            <span class='logged_out' style='display:block;'>You are not logged in.</span> <button class='logged_out' onclick='$( "#login-dialog" ).dialog( "open" );'>Login</button> <button class='logged_out' onclick='$( "#register-dialog" ).dialog( "open" );'>Register</button>
 			</span>
 		</div>
 		<div class="content">
 			<div class="inner">
 				<div id='available_tracks'></div>
+				<div id='historical_tracks' style="display:none;"></div>
                                 <div id="jplayer_inspector"></div>
 			</div>
 		</div>
@@ -145,12 +143,14 @@ $(document).ready(function() {
                                     </div>
                                 </div>
                             </td>
-                            <td>
+                            <td width=100%>
+                                <div style="height:70px;overflow-y: scroll;overflow-x: hidden;">
                                 <span id='curr_title' style="font-weight:bold;">None</span><br />
                                 <span id='curr_description'></span><br />
-                                by <span id='curr_speaker'></span> on <span id='curr_date'></span><br />
-                                <a id='curr_church_website' href=""><span id='curr_church'></span></a>
-                                <span id='curr_total_plays'></span> plays.<br />
+                                <span class='curr_helper' style="display:none;">by </span><span id='curr_author'></span><span class='curr_helper' style="display:none;"> on </span><span id='curr_track_timestamp'></span><br />
+                                <a id='curr_owner_website' href=""><span id='curr_owner_name'></span></a>
+                                <span id='curr_total_plays'></span><span class='curr_helper' style="display:none;"> plays.</span><br />
+                                </div>
                             </td>
                         </tr>
                     </table>    
@@ -174,23 +174,6 @@ $(document).ready(function() {
                    
 
 
-<br /><br />
-
-<span class='logged_out' style='display:block;'>
-    <hr />
-    <h2>Login</h2>
-    Email: <input type='text' id='login_email' onkeypress="if(event.keyCode==13) {login();}"><br />
-    Password: <input type='password' id='login_pass' onkeypress="if(event.keyCode==13) {login();}"><br />
-    <button onclick="login()">Submit</button><br /><br />
-    
-    <hr />
-    <h2>Register</h2>
-    Email: <input type='text' id='register_email' onkeypress="if(event.keyCode==13) {register();}"><br />
-    Password: <input type='password' id='register_pass1' onkeypress="if(event.keyCode==13) {register();}"><br />
-    Password Again: <input type='password' id='register_pass2' onkeypress="if(event.keyCode==13) {register();}"><br />
-    <button onclick="register()">Submit</button><br /><br />
-</span>
-
 <span class='logged_in' style='display:none;'>
     <hr />
     <button onclick="logout()">Logout</button><br /><br />
@@ -200,22 +183,90 @@ $(document).ready(function() {
 <script type="text/html" id="available_track_template">
 <table data-url="{{ file_loc }}">
     <tr>
-        <td><h4 onclick="add_to_playlist('{{ title }}', '{{ file_loc }}', '{{ id }}', '{{ author_name }}', '{{ sermon_timestamp }}')">[Add to Playlist] {{ author_name }}: {{ title }}</h4></td>
-        <td>{{ scripture }}</td>
+        <td><h4 onclick="add_to_playlist('{{ title }}', '{{ file_loc }}', '{{ id }}', '{{ author_name }}', '{{ track_timestamp }}')">[Add to Playlist] {{ author_name }}: {{ title }}</h4></td>
+        <td>{{ tags }}</td>
     </tr>
     <tr>
-        <td colspan=2>{{ description }}<br />Date: {{ sermon_timestamp }}</td>
+        <td colspan=2>{{ description }}<br />Time: {{ track_timestamp }}</td>
     </tr>
     <tr>
-        <td><a target="_blank" href='{{ church_website }}'>{{ church }}</a></td><td>Plays: {{ plays }}</td><td><a href='{{ file_loc }}'>Download</a></td>
+        <td><a target="_blank" href='{{ owner_website }}'>{{ owner_name }}</a></td><td>Plays: {{ plays }}</td><td><a href='{{ file_loc }}'>Download</a></td>
     </tr>
 </table>
 </script>
 <script type="text/html" id="playlist_track">
     <tr class="playlist_{{ id }}">
-        <td class="playlist_td" data-url="{{ file_loc }}" data-id="{{ id }}"><h4>[<a href="javascript:void" onclick="remove_from_playlist('{{ id }}')">X</a>] {{ author_name }}: {{ title }}</h4></td> <td colspan=2>Date: {{ sermon_timestamp }}</td><td></td>
+        <td class="playlist_td" data-url="{{ file_loc }}" data-id="{{ id }}"><h4>[<a href="javascript:void" onclick="remove_from_playlist('{{ id }}')">X</a>] {{ author_name }}: {{ title }}</h4></td> <td colspan=2>Date: {{ track_timestamp }}</td><td></td>
     </tr>
 </script>
+
+<script>
+
+  $(function() {
+    
+    $( "#login-dialog" ).dialog({
+      autoOpen: false,
+      height: 300,
+      width: 350,
+      modal: true,
+      buttons: {
+        "Submit": function() {
+            login();
+            $( this ).dialog( "close" );
+        },
+        Cancel: function() {
+          $( this ).dialog( "close" );
+        }
+      },
+      close: function() {
+      }
+    });
+    
+    
+    $( "#register-dialog" ).dialog({
+      autoOpen: false,
+      height: 300,
+      width: 350,
+      modal: true,
+      buttons: {
+        "Submit": function() {
+            register();
+            $( this ).dialog( "close" );
+        },
+        Cancel: function() {
+          $( this ).dialog( "close" );
+        }
+      },
+      close: function() {
+      }
+    });
+ 
+  });
+</script>
+
+<div id="login-dialog" title="Login">
+  <form>
+  <fieldset>
+    <label for="email">Email</label>
+    <input type="text" name="email" id="login_email" value="" class="text ui-widget-content ui-corner-all" />
+    <label for="password">Password</label>
+    <input type="password" name="password" id="login_pass" value="" class="text ui-widget-content ui-corner-all" />
+  </fieldset>
+  </form>
+</div>
+
+<div id="register-dialog" title="Register">
+  <form>
+  <fieldset>
+    <label for="email">Email</label>
+    <input type="text" name="email" id="register_email" value="" class="text ui-widget-content ui-corner-all" />
+    <label for="password">Password</label>
+    <input type="password" name="password" id="register_pass1" value="" class="text ui-widget-content ui-corner-all" />
+    <label for="password2">Password</label>
+    <input type="password" name="password2" id="register_pass2" value="" class="text ui-widget-content ui-corner-all" />
+  </fieldset>
+  </form>
+</div>
 
 </body>
 </html>

@@ -44,18 +44,8 @@ function new_current($user, $audio_id)
 {
     $returnData = array();
     $audio_id = abs(intval($audio_id));
-
-    $shrz = mysql_query("SELECT * FROM plays WHERE user_id=".$user['id']." AND audio_id=".$audio_id);
-    if (mysql_num_rows($shrz) > 0)
-    {
-        mysql_query("UPDATE plays SET start_timestamp=unix_timestamp() WHERE user_id=".$user['id']." AND audio_id=".$audio_id);
-        $returnData['did'] = "updated";
-    }
-    else
-    {
-        mysql_query("INSERT INTO plays (user_id, audio_id, start_timestamp) VALUES(".$user['id'].", ".$audio_id.", unix_timestamp())");
-        $returnData['did'] = "INSERT INTO plays (user_id, audio_id, start_timestamp) VALUES(".$user['id'].", ".$audio_id.", unix_timestamp())";
-    }
+        
+    mysql_query("INSERT INTO plays (user_id, audio_id, start_timestamp) VALUES(".$user['id'].", ".$audio_id.", unix_timestamp())");
 
     $returnData['audio_id'] = $audio_id;
     $returnData['status'] = "success";
@@ -70,14 +60,31 @@ function update_current($user, $audio_id, $audio_time)
     $audio_id = abs(intval($audio_id));
     $audio_time = abs(intval($audio_time));
 
-    $shrz = mysql_query("SELECT * FROM plays WHERE user_id=".$user['id']." AND audio_id=".$audio_id);
+    $shrz = mysql_query("SELECT * FROM plays WHERE user_id=".$user['id']." AND audio_id=".$audio_id." ORDER BY start_timestamp DESC LIMIT 1");
     if (mysql_num_rows($shrz) > 0)
-        mysql_query("UPDATE plays SET audio_timestamp=".$audio_time." WHERE user_id=".$user['id']." AND audio_id=".$audio_id);
+        mysql_query("UPDATE plays SET audio_timestamp=".$audio_time." WHERE user_id=".$user['id']." AND audio_id=".$audio_id." ORDER BY start_timestamp DESC LIMIT 1");
     else
         mysql_query("INSERT INTO plays (user_id, audio_id, start_timestamp, audio_timestamp) VALUES(".$user['id'].", ".$audio_id.", unix_timestamp(), ".$audio_time.")");
 
     $returnData['audio_id'] = $audio_id;
     $returnData['audio_time'] = $audio_time;
+    $returnData['status'] = "success";
+        
+    return json_encode($returnData);
+}
+
+function end_current($user, $audio_id, $duration)
+{
+    $returnData = array();
+    $audio_id = abs(intval($audio_id));
+    $duration = abs(intval($duration));
+    $end_time = time();
+    
+    mysql_query("UPDATE plays SET end_timestamp=".$end_time." WHERE user_id=".$user['id']." AND audio_id=".$audio_id." ORDER BY start_timestamp DESC LIMIT 1");
+    mysql_query("UPDATE audio SET duration=".$duration." WHERE id=".$audio_id);
+        
+    $returnData['audio_id'] = $audio_id;
+    $returnData['end_time'] = $end_time;
     $returnData['status'] = "success";
         
     return json_encode($returnData);
@@ -96,26 +103,26 @@ function view_available_tracks()
     return json_encode($returnData);
 }
 
-function add_sermon($file_loc, $file_loc_s3, $title, $author_name, $church, $church_website, $description, $scripture, $sermon_timestamp, $download_me)
+function add_track($file_loc, $file_loc_s3, $title, $author_name, $owner_name, $owner_website, $description, $tags, $track_timestamp, $download_me)
 {
     $file_loc = mysql_real_escape_string($file_loc);
     $file_loc_s3 = mysql_real_escape_string($file_loc_s3);
     $title = mysql_real_escape_string($title);
     $author_name = mysql_real_escape_string($author_name);
-    $church = mysql_real_escape_string($church);
-    $church_website = mysql_real_escape_string($church_website);
+    $owner_name = mysql_real_escape_string($owner_name);
+    $owner_website = mysql_real_escape_string($owner_website);
     $description = mysql_real_escape_string($description);
-    $scripture = mysql_real_escape_string($scripture);
-    $sermon_timestamp = mysql_real_escape_string($sermon_timestamp);
+    $tags = mysql_real_escape_string($tags);
+    $track_timestamp = mysql_real_escape_string($track_timestamp);
     $download_me = intval($download_me);
     $exists = mysql_query("SELECT * FROM audio WHERE file_loc='$file_loc'");
     if(mysql_num_rows($exists) > 0)
     {
-        mysql_query("UPDATE audio SET file_loc_s3='$file_loc_s3', title='$title', author_name='$author_name', church='$church', church_website='$church_website', description='$description', scripture='$scripture', sermon_timestamp='$sermon_timestamp', download_me=$download_me WHERE file_loc='$file_loc'");
+        mysql_query("UPDATE audio SET file_loc_s3='$file_loc_s3', title='$title', author_name='$author_name', owner_name='$owner_name', owner_website='$owner_website', description='$description', tags='$tags', track_timestamp='$track_timestamp', download_me=$download_me WHERE file_loc='$file_loc'");
     }
     else
     {
-        mysql_query("INSERT INTO audio (file_loc, file_loc_s3, title, author_name, church, church_website, description, scripture, sermon_timestamp, download_me) VALUES('$file_loc', '$file_loc_s3', '$title', '$author_name', '$church', '$church_website', '$description', '$scripture', '$sermon_timestamp', $download_me)");
+        mysql_query("INSERT INTO audio (file_loc, file_loc_s3, title, author_name, owner_name, owner_website, description, tags, track_timestamp, download_me) VALUES('$file_loc', '$file_loc_s3', '$title', '$author_name', '$owner_name', '$owner_website', '$description', '$tags', '$track_timestamp', $download_me)");
     }
 }
 
@@ -196,6 +203,9 @@ function user_logout()
     return json_encode($returnData);
 }
 
+/*
+ *Used by both login and register (which logs in a user after they finish creating an account).
+ */
 function helper_login_user($email, $encPassword, $user_id=-1)
 {
     $returnData = array();
@@ -211,7 +221,7 @@ function helper_login_user($email, $encPassword, $user_id=-1)
         $_SESSION['userid'] = $user['id'];
         $returnData['email'] = $user['email'];
         $returnData['curr_playing'] = -1;
-        $shrz = mysql_query("SELECT * FROM plays WHERE user_id=".$user['id']." ORDER BY start_timestamp DESC LIMIT 1");
+        $shrz = mysql_query("SELECT * FROM plays WHERE user_id=".$user['id']." AND end_timestamp=0 AND downloaded=0");
         if (mysql_num_rows($shrz) > 0)
         {
             $returnData['curr_playing'] = array();

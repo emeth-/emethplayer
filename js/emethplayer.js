@@ -15,7 +15,6 @@ function get_logged_in_user()
         dataType:'json',
         data: { },
         success: function(data) {
-            console.log(data);
             if (data.status == "success")
             {
                 jQuery('.username_display').html(data.email);
@@ -45,11 +44,10 @@ function load_playlist()
         dataType:'json',
         data: { },
         success: function(data) {
-            console.log(data);
             if (data.status == "success")
             {
                 jQuery.each(data.playlist, function(k,v){
-                    add_to_playlist(data.playlist_data[v].title, data.playlist_data[v].file_loc, v, data.playlist_data[v].author_name, data.playlist_data[v].sermon_timestamp);
+                    add_to_playlist(data.playlist_data[v].title, data.playlist_data[v].file_loc, v, data.playlist_data[v].author_name, data.playlist_data[v].track_timestamp);
                 });
 
             }
@@ -73,7 +71,6 @@ function logout()
         dataType:'json',
         data: {},
         success: function(data) {
-            console.log(data);
             jQuery('.logged_in').css('display', 'none');
             jQuery('.logged_out').css('display', 'block');
         },
@@ -86,8 +83,8 @@ function logout()
 function login()
 {
     var dataz = {
-        'login_email': jQuery('#login_email').val(), 
-        'login_pass': jQuery('#login_pass').val(), 
+        'login_email': jQuery('#login_email:visible').val(), 
+        'login_pass': jQuery('#login_pass:visible').val(), 
     };
     jQuery.ajax({
         type: "POST",
@@ -95,7 +92,6 @@ function login()
         dataType:'json',
         data: dataz,
         success: function(data) {
-            console.log(data);
             if (data.status == "success")
             {
                 jQuery('.username_display').html(data.email);
@@ -120,9 +116,9 @@ function login()
 function register()
 {
     var dataz = {
-        'register_email': jQuery('#register_email').val(), 
-        'register_pass1': jQuery('#register_pass1').val(), 
-        'register_pass2': jQuery('#register_pass2').val(), 
+        'register_email': jQuery('#register_email:visible').val(), 
+        'register_pass1': jQuery('#register_pass1:visible').val(), 
+        'register_pass2': jQuery('#register_pass2:visible').val(), 
     };
     if (dataz['register_pass1'] != dataz['register_pass2'])
     {
@@ -136,7 +132,6 @@ function register()
             dataType:'json',
             data: dataz,
             success: function(data) {
-                console.log(data);
                 if (data.status == "success")
                 {
                     jQuery('.username_display').html(data.email);
@@ -196,7 +191,6 @@ function new_current()
             update_current_lock = 0;
         },
         success:function (data) {
-            console.log("new_current_success", data);
             update_current_lock = 0;
         }
     });
@@ -220,7 +214,7 @@ function save_playlist()
             console.log('error', e);
         },
         success:function (data) {
-            console.log("save_playlist", data);
+
         }
     });
 }
@@ -244,14 +238,32 @@ function update_current()
                 update_current_lock = 0;
             },
             success:function (data) {
-                console.log("update_current_success", data);
                 update_current_lock = 0;
             }
         });
     }
 }
 
-function add_to_playlist(title, mp3, id, author_name, sermon_timestamp)
+function end_current(duration)
+{
+    jQuery.ajax({
+        url: 'ajax.php?act=end_current',
+        type:"POST",
+        dataType:'json',
+        data: {
+            'audio_id': curr_playing['id'],
+            'duration': parseInt(duration)
+        },
+        error:function (e) {
+            console.log('error', e);
+        },
+        success:function (data) {
+            set_track_blank();
+        }
+    });
+}
+
+function add_to_playlist(title, mp3, id, author_name, track_timestamp)
 {
     if (jQuery(".playlist_"+id).length <= 0)
     {
@@ -260,7 +272,7 @@ function add_to_playlist(title, mp3, id, author_name, sermon_timestamp)
             'id': id,
             'author_name': author_name,
             'title': title,
-            'sermon_timestamp': sermon_timestamp
+            'track_timestamp': track_timestamp
         };
         jQuery('#playlist').append(ich.playlist_track(dataz));
         save_playlist();
@@ -298,17 +310,33 @@ function set_current_track_local(info)
         mp3: info.file_loc
     });
     jQuery('#curr_title').html(info.title);
-    jQuery('#curr_speaker').html(info.author_name);
-    jQuery('#curr_church').html(info.church);
-    jQuery('#curr_church_website').attr('src', info.church_website);
+    jQuery('#curr_author').html(info.author_name);
+    jQuery('#curr_owner_name').html(info.owner_name);
+    jQuery('#curr_owner_website').attr('src', info.owner_website);
     jQuery('#curr_description').html(info.description);
     jQuery('#curr_total_plays').html(info.plays);
-    jQuery('#curr_date').html('...');
+    jQuery('#curr_track_timestamp').html(info.track_timestamp);
+    jQuery('.curr_helper').css('display', 'inline');
+}
+
+function set_track_blank(info)
+{
+    curr_playing = {};
+    $("#jquery_jplayer_1").jPlayer("setMedia", {
+        mp3: ""
+    });
+    jQuery('#curr_title').html("None");
+    jQuery('#curr_author').html("");
+    jQuery('#curr_owner_name').html("");
+    jQuery('#curr_owner_website').attr('src', "");
+    jQuery('#curr_description').html("");
+    jQuery('#curr_total_plays').html("");
+    jQuery('#curr_track_timestamp').html('');
+    jQuery('.curr_helper').css('display', 'none');
 }
 
 function next_track()
 {
-    console.log("Loading next track...");
     if (jQuery('#playlist').find('tr:first-child').length > 0)
     {
         var load_track = available_tracks[jQuery('#playlist').find('tr:first-child').find('td:first-child').attr('data-id')];
@@ -316,4 +344,5 @@ function next_track()
         jQuery('#playlist').find('tr:first-child').remove();
         $("#jquery_jplayer_1").jPlayer("play");
     }
+    save_playlist();
 }
