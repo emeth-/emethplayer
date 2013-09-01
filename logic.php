@@ -46,6 +46,7 @@ function new_current($user, $audio_id)
     $audio_id = abs(intval($audio_id));
         
     mysql_query("INSERT INTO plays (user_id, audio_id, start_timestamp) VALUES(".$user['id'].", ".$audio_id.", unix_timestamp())");
+    mysql_query("UPDATE audio SET plays=plays+1 WHERE id=".$audio_id);
 
     $returnData['audio_id'] = $audio_id;
     $returnData['status'] = "success";
@@ -62,9 +63,14 @@ function update_current($user, $audio_id, $audio_time)
 
     $shrz = mysql_query("SELECT * FROM plays WHERE user_id=".$user['id']." AND audio_id=".$audio_id." ORDER BY start_timestamp DESC LIMIT 1");
     if (mysql_num_rows($shrz) > 0)
+    {
         mysql_query("UPDATE plays SET audio_timestamp=".$audio_time." WHERE user_id=".$user['id']." AND audio_id=".$audio_id." ORDER BY start_timestamp DESC LIMIT 1");
+    }
     else
+    {
         mysql_query("INSERT INTO plays (user_id, audio_id, start_timestamp, audio_timestamp) VALUES(".$user['id'].", ".$audio_id.", unix_timestamp(), ".$audio_time.")");
+        mysql_query("UPDATE audio SET plays=plays+1 WHERE id=".$audio_id);
+    }
 
     $returnData['audio_id'] = $audio_id;
     $returnData['audio_time'] = $audio_time;
